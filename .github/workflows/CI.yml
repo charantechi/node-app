@@ -36,10 +36,34 @@ jobs:
         push: true
         tags: ${{ vars.ACR_URL }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
 
-    - name: Repository Dispatch
-      uses: peter-evans/repository-dispatch@v1
+    # - name: Repository Dispatch
+    #   uses: peter-evans/repository-dispatch@v1
+    #   with:
+    #     token: ${{ secrets.PAT }}
+    #     repository: ${{ github.actor }}/argocd-node-app-config
+    #     event-type: new-image
+    #     client-payload: '{"image": "${{ vars.ACR_URL }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"}'
+
+    - name: Azure login
+      uses: azure/login@v2
       with:
-        token: ${{ secrets.PAT }}
-        repository: ${{ github.actor }}/argocd-node-app-config
-        event-type: new-image
-        client-payload: '{"image": "${{ vars.ACR_URL }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"}'
+          auth-type: IDENTITY
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+    - name: Get AKS credentials (admin)
+      run: |
+          az aks get-credentials \
+            --resource-group ${{ vars.AKS_RESOURCE_GROUP }} \
+            --name ${{ vars.AKS_CLUSTER }} \
+            --admin \
+            --overwrite-existing
+
+    - name: Set image in manifest (optional)
+      run: |
+          sed -i "s|<IMAGE>|${{ vars.ACR_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}|g" deployment.yaml
+
+    - name: Deploy to AKS
+      run: |
+          kubectl apply -f deployment.yaml -n ${{ vars.AKS_NAMESPACE }}
