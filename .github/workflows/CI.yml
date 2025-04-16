@@ -6,13 +6,12 @@ on:
     - main
   workflow_dispatch:
 env:
-  name: stag
   IMAGE_NAME: dpnode-stag
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    environment: stag
     steps:
     - uses: actions/checkout@v2
 
